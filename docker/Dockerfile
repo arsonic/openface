@@ -64,3 +64,8 @@ RUN cd ~ && \
     cp dlib.so ..
 
 EXPOSE 9000
+
+RUN pip2 install flask
+RUN pip2 install cherrypy
+
+EXPOSE 80
