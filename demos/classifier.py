@@ -53,7 +53,7 @@ def getRep(imgPath):
     img = cv2.imread(imgPath)
     if img is None:
         raise Exception("Unable to load image: {}".format(imgPath))
-    if args.verbose:
+    if args and args.verbose:
         print("  + Original size: {}".format(img.shape))
 
     bb = align.getLargestFaceBoundingBox(img)
@@ -98,7 +98,42 @@ def train(args):
         pickle.dump((le, svm), f)
 
 
+sys.path.append(os.path.expanduser("~/src/dlib-18.16/python_examples"))
+import dlib
+from openface.alignment import NaiveDlib  # Depends on dlib.
+def inferWithParams(params):
+    imgDim = 96
+    dlibFaceMean = os.path.join(dlibModelDir, "mean.csv")
+    dlibFacePredictor = os.path.join(dlibModelDir, "shape_predictor_68_face_landmarks.dat")
+    networkModel = os.path.join(openfaceModelDir, 'nn4.v1.t7')
+
+    align = NaiveDlib(dlibFaceMean, dlibFacePredictor)
+    net = openface.TorchWrap(networkModel, imgDim=imgDim, cuda=False)
+
+    with open(params['classifierModel'], 'r') as f:
+        (le, svm) = pickle.load(f)
+
+    # Get reps:
+    imgPath = params['img']
+    img = cv2.imread(imgPath)
+    if img is None:
+        raise Exception("Unable to load image: {}".format(imgPath))
+    bb = align.getLargestFaceBoundingBox(img)
+    if bb is None:
+        raise Exception("Unable to find a face: {}".format(imgPath))
+    alignedFace = align.alignImg("affine", imgDim, img, bb)
+    if alignedFace is None:
+        raise Exception("Unable to align image: {}".format(imgPath))
+    rep = net.forwardImage(alignedFace)
+
+    predictions = svm.predict_proba(rep)[0]
+    maxI = np.argmax(predictions)
+    person = le.inverse_transform(maxI)
+    confidence = predictions[maxI]
+    return {'name': person, 'confidence': confidence}
+
 def infer(args):
+    print args
     with open(args.classifierModel, 'r') as f:
         (le, svm) = pickle.load(f)
     rep = getRep(args.img)
