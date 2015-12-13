@@ -98,10 +98,22 @@ def train(args):
         pickle.dump((le, svm), f)
 
 
+        
+# Load dlib:
 sys.path.append(os.path.expanduser("~/src/dlib-18.16/python_examples"))
 import dlib
-from openface.alignment import NaiveDlib  # Depends on dlib.
+# NaiveDlib Depends on dlib.
+from openface.alignment import NaiveDlib  
+
 def inferWithParams(params):
+    """Classify an image with the provided model path
+
+    Keyword arguments:
+    params['img'] -- absolute path to the image
+    params['classiferModel'] -- absolute path to the .pkl model
+    """
+
+    # The default parameters are inferred from the main section of the script:
     imgDim = 96
     dlibFaceMean = os.path.join(dlibModelDir, "mean.csv")
     dlibFacePredictor = os.path.join(dlibModelDir, "shape_predictor_68_face_landmarks.dat")
@@ -113,7 +125,7 @@ def inferWithParams(params):
     with open(params['classifierModel'], 'r') as f:
         (le, svm) = pickle.load(f)
 
-    # Get reps:
+    # Get representations:
     imgPath = params['img']
     img = cv2.imread(imgPath)
     if img is None:
@@ -128,6 +140,7 @@ def inferWithParams(params):
 
     predictions = svm.predict_proba(rep)[0]
     maxI = np.argmax(predictions)
+
     person = le.inverse_transform(maxI)
     confidence = predictions[maxI]
     return {'name': person, 'confidence': confidence}
